@@ -1,0 +1,55 @@
+# https://goframe.org/docs/web/server-config-file-template
+server:
+  address:     ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+  debug: true
+
+# https://goframe.org/docs/core/glog-config
+logger:
+  level : "all"
+  stdout: true
+
+# https://goframe.org/docs/core/gdb-config-file
+database:
+  default:
+    link: "mysql:root:your_password@tcp(127.0.0.1:3306)/your_database"
+
+# NL2SQL 配置
+nl2sql:
+  # LLM 配置
+  llm:
+    provider: "openai"                    # openai/deepseek/qwen/ollama/openrouter
+    model: "gpt-4o"
+    apiKey: "sk-xxx"
+    baseUrl: ""                           # 留空使用默认地址，也可自定义
+    temperature: 0.0
+
+  # Embedding 配置
+  embedding:
+    provider: "openai"                    # openai/ollama 或其他 OpenAI 兼容接口
+    model: "text-embedding-3-small"
+    apiKey: "sk-xxx"
+    baseUrl: ""                           # 留空使用默认地址
+    dimensions: 1536                      # 向量维度，需与模型匹配
+
+  # Qdrant 向量数据库配置
+  qdrant:
+    host: "localhost"
+    port: 6334                            # gRPC 端口
+    collectionPrefix: "nl2sql"            # collection 名称前缀
+
+  # 目标数据库（要查询的业务数据库）
+  datasource:
+    type: "mysql"
+    link: "mysql:root:your_password@tcp(127.0.0.1:3306)/your_business_db"
+
+  # Trace 配置（可选，留空则不启用）
+  trace:
+    provider: ""                          # langfuse/cozeloop，留空则不启用 trace
+    # Langfuse 配置
+    langfuse:
+      host: "http://localhost:3000"
+      publicKey: "pk-lf-xxx"
+      secretKey: "sk-lf-xxx"
+    # CozeLoop 配置（通过环境变量: COZELOOP_WORKSPACE_ID, COZELOOP_API_TOKEN）
