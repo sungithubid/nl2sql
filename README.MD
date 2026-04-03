@@ -93,7 +93,7 @@ nl2sql/
 ├── api/nl2sql/v1/
 │   └── nl2sql.go                          # API 定义（6个端点）
 ├── internal/
-│   ├── cmd/cmd.go                          # 路由注册（通过 service 接口初始化）
+│   ├── cmd/cmd.go                          # 路由注册 + 初始化
 │   ├── controller/nl2sql/
 │   │   └── nl2sql.go                       # HTTP 控制器
 │   ├── logic/nl2sql/
