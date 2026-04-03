@@ -93,20 +93,16 @@ nl2sql/
 ├── api/nl2sql/v1/
 │   └── nl2sql.go                          # API 定义（6个端点）
 ├── internal/
-│   ├── cmd/cmd.go                          # 路由注册 + 服务初始化
+│   ├── cmd/cmd.go                          # 路由注册（通过 service 接口初始化）
 │   ├── controller/nl2sql/
-│   │   ├── nl2sql.go                       # HTTP 控制器
-│   │   └── nl2sql_err.go                   # 错误定义
+│   │   └── nl2sql.go                       # HTTP 控制器
 │   ├── logic/nl2sql/
-│   │   ├── nl2sql.go                       # 主服务入口
+│   │   ├── nl2sql.go                       # 主服务（实现 service.INl2sql 接口）
+│   │   ├── component.go                    # 业务组件组装（LLM/Embedding/Qdrant/DB）
 │   │   ├── training.go                     # 训练逻辑（DDL/Doc/SQL）
 │   │   ├── generate.go                     # RAG SQL 生成
 │   │   ├── execute.go                      # SQL 执行
 │   │   ├── answer.go                       # 自然语言回答构建
-│   │   ├── component/
-│   │   │   ├── factory.go                  # Eino 组件工厂
-│   │   │   ├── vectorstore.go              # Qdrant 向量存储封装
-│   │   │   └── trace.go                    # Trace 初始化（Langfuse/CozeLoop）
 │   │   ├── prompt/
 │   │   │   ├── prompt.go                   # Eino Prompt 管理组件
 │   │   │   └── templates.go                # Prompt 模板定义
@@ -119,6 +115,12 @@ nl2sql/
 │   │       ├── tools.go                    # Agent 工具定义
 │   │       ├── state.go                    # 工作流状态
 │   │       └── callback.go                 # Eino SQL安全拦截回调
+│   ├── vectorstore/
+│   │   └── vectorstore.go                  # 通用 Qdrant 向量存储封装
+│   ├── trace/
+│   │   └── trace.go                        # 通用 Trace 初始化（Langfuse/CozeLoop）
+│   ├── service/
+│   │   └── nl2sql.go                       # 服务接口定义（含 Init 生命周期）
 │   └── model/
 │       └── nl2sql.go                       # 数据模型
 ├── manifest/config/
