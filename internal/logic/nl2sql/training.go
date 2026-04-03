@@ -6,15 +6,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"nl2sql/internal/logic/nl2sql/component"
+	"nl2sql/internal/vectorstore"
 )
 
 // trainDDL 将 DDL schema 向量化并存入 Qdrant（内部方法）
 func (s *sNl2sql) trainDDL(ctx context.Context, ddl string) (string, error) {
-	collection := component.CollectionName(ctx, "ddl")
+	collection := collectionName(ctx, "ddl")
 	docID := uuid.New().String()
 
-	ids, err := s.comp.VectorStore.Store(ctx, collection, []*component.Document{
+	ids, err := s.comp.VectorStore.Store(ctx, collection, []*vectorstore.Document{
 		{
 			ID:      docID,
 			Content: ddl,
@@ -34,10 +34,10 @@ func (s *sNl2sql) trainDDL(ctx context.Context, ddl string) (string, error) {
 
 // trainDoc 将文档向量化并存入 Qdrant（内部方法）
 func (s *sNl2sql) trainDoc(ctx context.Context, documentation string) (string, error) {
-	collection := component.CollectionName(ctx, "doc")
+	collection := collectionName(ctx, "doc")
 	docID := uuid.New().String()
 
-	ids, err := s.comp.VectorStore.Store(ctx, collection, []*component.Document{
+	ids, err := s.comp.VectorStore.Store(ctx, collection, []*vectorstore.Document{
 		{
 			ID:      docID,
 			Content: documentation,
@@ -57,12 +57,12 @@ func (s *sNl2sql) trainDoc(ctx context.Context, documentation string) (string, e
 
 // trainSQL 将问题-SQL对向量化并存入 Qdrant（内部方法）
 func (s *sNl2sql) trainSQL(ctx context.Context, question, sql string) (string, error) {
-	collection := component.CollectionName(ctx, "sql")
+	collection := collectionName(ctx, "sql")
 	docID := uuid.New().String()
 
 	// 将问题和SQL拼接存储，问题作为主内容用于向量检索，SQL放在metadata中
 	content := fmt.Sprintf("Question: %s\nSQL: %s", question, sql)
-	ids, err := s.comp.VectorStore.Store(ctx, collection, []*component.Document{
+	ids, err := s.comp.VectorStore.Store(ctx, collection, []*vectorstore.Document{
 		{
 			ID:      docID,
 			Content: content,

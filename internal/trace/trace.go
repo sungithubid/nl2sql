@@ -1,4 +1,4 @@
-package component
+package trace
 
 import (
 	"context"
@@ -11,42 +11,48 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 )
 
-// InitTrace 根据配置初始化 Trace 回调
+// Config trace 配置（调用方从各自的配置命名空间读取后传入）
+type Config struct {
+	Provider string // langfuse 或 cozeloop
+	Langfuse LangfuseConfig
+}
+
+// LangfuseConfig Langfuse trace 配置
+type LangfuseConfig struct {
+	Host      string
+	PublicKey string
+	SecretKey string
+}
+
+// Init 根据 config 初始化 Trace 回调
 // 支持 langfuse 和 cozeloop 两种 trace 后端
 // 返回一个 cleanup 函数，用于在服务关闭时刷新并清理 trace 数据
-func InitTrace(ctx context.Context) (cleanup func(), err error) {
-	cfg := g.Cfg()
-	provider := cfg.MustGet(ctx, "nl2sql.trace.provider").String()
-	if provider == "" {
+func Init(ctx context.Context, cfg *Config) (func(), error) {
+	if cfg == nil || cfg.Provider == "" {
 		g.Log().Info(ctx, "No trace provider configured, tracing is disabled")
 		return func() {}, nil
 	}
 
-	switch provider {
+	switch cfg.Provider {
 	case "langfuse":
-		return initLangfuse(ctx)
+		return initLangfuse(ctx, &cfg.Langfuse)
 	case "cozeloop":
 		return initCozeloop(ctx)
 	default:
-		return nil, fmt.Errorf("unsupported trace provider: %s, supported: langfuse/cozeloop", provider)
+		return nil, fmt.Errorf("unsupported trace provider: %s, supported: langfuse/cozeloop", cfg.Provider)
 	}
 }
 
 // initLangfuse 初始化 Langfuse trace
-func initLangfuse(ctx context.Context) (func(), error) {
-	cfg := g.Cfg()
-	host := cfg.MustGet(ctx, "nl2sql.trace.langfuse.host").String()
-	publicKey := cfg.MustGet(ctx, "nl2sql.trace.langfuse.publicKey").String()
-	secretKey := cfg.MustGet(ctx, "nl2sql.trace.langfuse.secretKey").String()
-
-	if host == "" || publicKey == "" || secretKey == "" {
-		return nil, fmt.Errorf("langfuse trace requires host, publicKey, and secretKey in config")
+func initLangfuse(ctx context.Context, cfg *LangfuseConfig) (func(), error) {
+	if cfg.Host == "" || cfg.PublicKey == "" || cfg.SecretKey == "" {
+		return nil, fmt.Errorf("langfuse trace requires host, publicKey, and secretKey")
 	}
 
 	handler, flusher := langfuseCb.NewLangfuseHandler(&langfuseCb.Config{
-		Host:      host,
-		PublicKey: publicKey,
-		SecretKey: secretKey,
+		Host:      cfg.Host,
+		PublicKey: cfg.PublicKey,
+		SecretKey: cfg.SecretKey,
 		Name:      "nl2sql",
 	})
 

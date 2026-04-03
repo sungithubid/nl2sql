@@ -13,6 +13,8 @@ import (
 
 // INl2sql NL2SQL 服务接口
 type INl2sql interface {
+	// Init 初始化服务（Trace + 组件 + 工作流），返回 cleanup 函数
+	Init(ctx context.Context) (func(), error)
 	// Ask 自然语言提问
 	Ask(ctx context.Context, input *model.AskInput) (*model.AskOutput, error)
 	// TrainDDL 训练 DDL schema

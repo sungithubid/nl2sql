@@ -10,15 +10,15 @@ import (
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"nl2sql/internal/logic/nl2sql/component"
 	"nl2sql/internal/logic/nl2sql/workflow"
 	"nl2sql/internal/model"
 	"nl2sql/internal/service"
+	"nl2sql/internal/trace"
 )
 
 // sNl2sql NL2SQL 服务实现（GoFrame 命名约定: s + 首字母大写）
 type sNl2sql struct {
-	comp           *component.Components
+	comp           *components
 	mu             sync.RWMutex
 	simpleRunnable compose.Runnable[*workflow.WorkflowState, *workflow.WorkflowState]
 	retryRunnable  compose.Runnable[*workflow.WorkflowState, *workflow.WorkflowState]
@@ -30,43 +30,58 @@ func init() {
 	service.RegisterNl2sql(&sNl2sql{})
 }
 
-// Init 初始化 NL2SQL 服务（创建所有 eino 组件）
-// 在 cmd 启动时调用，用于建立与外部服务的连接
-func Init(ctx context.Context) error {
-	s := service.Nl2sql().(*sNl2sql)
-	comp, err := component.NewComponents(ctx)
+// Init 初始化 NL2SQL 服务（初始化 Trace + 创建所有 eino 组件）
+// 实现 service.INl2sql 接口
+func (s *sNl2sql) Init(ctx context.Context) (cleanup func(), err error) {
+	// 初始化 Trace（Langfuse / CozeLoop）
+	cfg := g.Cfg()
+	traceCleanup, err := trace.Init(ctx, &trace.Config{
+		Provider: cfg.MustGet(ctx, "nl2sql.trace.provider").String(),
+		Langfuse: trace.LangfuseConfig{
+			Host:      cfg.MustGet(ctx, "nl2sql.trace.langfuse.host").String(),
+			PublicKey: cfg.MustGet(ctx, "nl2sql.trace.langfuse.publicKey").String(),
+			SecretKey: cfg.MustGet(ctx, "nl2sql.trace.langfuse.secretKey").String(),
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("failed to initialize NL2SQL components: %w", err)
+		g.Log().Warningf(ctx, "Trace initialization failed: %v", err)
+	} else if traceCleanup != nil {
+		cleanup = traceCleanup
+	}
+
+	comp, compErr := newComponents(ctx)
+	if compErr != nil {
+		return cleanup, fmt.Errorf("failed to initialize NL2SQL components: %w", compErr)
 	}
 	s.comp = comp
 
 	// 预编译 Simple 工作流（Chain）
-	simpleRunnable, err := workflow.CompileSimpleChain(ctx, s)
-	if err != nil {
-		return fmt.Errorf("failed to compile simple workflow: %w", err)
+	simpleRunnable, compileErr := workflow.CompileSimpleChain(ctx, s)
+	if compileErr != nil {
+		return cleanup, fmt.Errorf("failed to compile simple workflow: %w", compileErr)
 	}
 	s.simpleRunnable = simpleRunnable
 
 	// 预编译 Retry 工作流（Graph）
-	retryRunnable, err := workflow.CompileRetryGraph(ctx, s)
-	if err != nil {
-		return fmt.Errorf("failed to compile retry workflow: %w", err)
+	retryRunnable, compileErr := workflow.CompileRetryGraph(ctx, s)
+	if compileErr != nil {
+		return cleanup, fmt.Errorf("failed to compile retry workflow: %w", compileErr)
 	}
 	s.retryRunnable = retryRunnable
 
 	// 创建 React Agent（使用独立的 ChatModel，避免 BindTools 污染共享实例）
-	agentChatModel, err := component.NewChatModel(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create agent chat model: %w", err)
+	agentChatModel, modelErr := newChatModel(ctx)
+	if modelErr != nil {
+		return cleanup, fmt.Errorf("failed to create agent chat model: %w", modelErr)
 	}
-	agentInst, err := workflow.CompileAgent(ctx, s, agentChatModel)
-	if err != nil {
-		return fmt.Errorf("failed to compile react agent: %w", err)
+	agentInst, compileErr := workflow.CompileAgent(ctx, s, agentChatModel)
+	if compileErr != nil {
+		return cleanup, fmt.Errorf("failed to compile react agent: %w", compileErr)
 	}
 	s.agentInstance = agentInst
 
 	g.Log().Info(ctx, "NL2SQL service components and workflows initialized successfully")
-	return nil
+	return cleanup, nil
 }
 
 // Ask 自然语言提问入口
@@ -138,9 +153,9 @@ func (s *sNl2sql) RemoveTrainingData(ctx context.Context, id string) error {
 	}
 
 	collections := []string{
-		component.CollectionName(ctx, "ddl"),
-		component.CollectionName(ctx, "doc"),
-		component.CollectionName(ctx, "sql"),
+		collectionName(ctx, "ddl"),
+		collectionName(ctx, "doc"),
+		collectionName(ctx, "sql"),
 	}
 
 	for _, collection := range collections {
@@ -166,7 +181,7 @@ func (s *sNl2sql) ListTrainingData(ctx context.Context, dataType string) ([]*mod
 	}
 
 	for _, t := range types {
-		collection := component.CollectionName(ctx, t)
+		collection := collectionName(ctx, t)
 		collectionItems, err := s.listFromCollection(ctx, collection, t)
 		if err != nil {
 			continue

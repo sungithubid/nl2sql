@@ -8,7 +8,6 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"golang.org/x/sync/errgroup"
 
-	"nl2sql/internal/logic/nl2sql/component"
 	"nl2sql/internal/logic/nl2sql/prompt"
 )
 
@@ -29,7 +28,7 @@ func (s *sNl2sql) GenerateSQL(ctx context.Context, question string, previousErro
 
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		collection := component.CollectionName(egCtx, "ddl")
+		collection := collectionName(egCtx, "ddl")
 		result, err := s.comp.VectorStore.RetrieveContentByVector(egCtx, collection, vector, 5)
 		if err != nil {
 			g.Log().Warningf(egCtx, "retrieve ddl context failed: %v", err)
@@ -39,7 +38,7 @@ func (s *sNl2sql) GenerateSQL(ctx context.Context, question string, previousErro
 		return nil
 	})
 	eg.Go(func() error {
-		collection := component.CollectionName(egCtx, "doc")
+		collection := collectionName(egCtx, "doc")
 		result, err := s.comp.VectorStore.RetrieveContentByVector(egCtx, collection, vector, 5)
 		if err != nil {
 			g.Log().Warningf(egCtx, "retrieve doc context failed: %v", err)
@@ -49,7 +48,7 @@ func (s *sNl2sql) GenerateSQL(ctx context.Context, question string, previousErro
 		return nil
 	})
 	eg.Go(func() error {
-		collection := component.CollectionName(egCtx, "sql")
+		collection := collectionName(egCtx, "sql")
 		result, err := s.comp.VectorStore.RetrieveContentByVector(egCtx, collection, vector, 5)
 		if err != nil {
 			g.Log().Warningf(egCtx, "retrieve sql context failed: %v", err)
@@ -87,7 +86,7 @@ func (s *sNl2sql) GenerateSQL(ctx context.Context, question string, previousErro
 // RetrieveContext 从指定类型的 collection 中检索相关上下文（实现 workflow.Executor 接口）
 // 供 Agent 工具等场景单独调用（这些场景中 query 可能不同，无法预共享 vector）
 func (s *sNl2sql) RetrieveContext(ctx context.Context, docType string, query string) (string, error) {
-	collection := component.CollectionName(ctx, docType)
+	collection := collectionName(ctx, docType)
 	return s.comp.VectorStore.RetrieveContent(ctx, collection, query, 5)
 }
 
